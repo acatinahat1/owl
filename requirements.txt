@@ -1,5 +1,6 @@
-flask>=3.0
-anthropic>=1.0
-python-dotenv>=1.0
-chromadb>=0.5
-sentence-transformers>=2.2
+flask
+anthropic
+chromadb
+sentence-transformers
+python-dotenv
+gunicorn
