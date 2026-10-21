@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buddy's Virtual Tutorial</title>
+    <!-- Flask serves everything in the ./static folder at /static/... -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <!-- ================= Header ================= -->
+    <header class="site-header">
+        <span class="logo" aria-hidden="true">🦉</span>
+        <div>
+            <h1>Buddy's Virtual Tutorial</h1>
+            <p class="tagline">Learning is fun! Pick a subject to start. ✨</p>
+        </div>
+    </header>
+
+    <!-- ================= Learning dashboard =================
+       Four views live here. Only one has the "active" class at a time;
+       showView() switches between them with a fade/slide (see style.css). -->
+    <main id="dashboard">
+
+        <!-- Homepage: grid of subjects -->
+        <section id="view-home" class="view active" aria-labelledby="home-title">
+            <h2 id="home-title" class="view-title">My Subjects</h2>
+            <div id="subject-grid" class="card-grid"></div>
+        </section>
+
+        <!-- Chapter view: chapters of the chosen subject -->
+        <section id="view-chapters" class="view" aria-labelledby="chapters-title">
+            <button class="back-btn" data-back="home">⬅ Back to Subjects</button>
+            <h2 id="chapters-title" class="view-title"></h2>
+            <div id="chapter-list" class="list"></div>
+        </section>
+
+        <!-- Lesson view: lessons of the chosen chapter -->
+        <section id="view-lessons" class="view" aria-labelledby="lessons-title">
+            <button class="back-btn" data-back="chapters">⬅ Back to Chapters</button>
+            <h2 id="lessons-title" class="view-title"></h2>
+            <div id="lesson-list" class="list"></div>
+        </section>
+
+        <!-- Reader: the lesson notes -->
+        <section id="view-reader" class="view" aria-labelledby="reader-title">
+            <button class="back-btn" data-back="lessons">⬅ Back to Lessons</button>
+            <article class="reader">
+                <h2 id="reader-title"></h2>
+                <div id="reader-body"></div>
+                <p class="reader-tip">🤔 Have a question about this lesson? Ask Buddy in the corner!</p>
+            </article>
+        </section>
+    </main>
+
+    <!-- ================= Floating Buddy chat widget ================= -->
+    <button id="chat-toggle" class="chat-toggle" aria-label="Open chat with Buddy" aria-expanded="false"
+        aria-controls="chat-window">
+        <span class="icon-open" aria-hidden="true">💬</span>
+        <span class="icon-close" aria-hidden="true">✖</span>
+    </button>
+
+    <div id="chat-window" class="chat-window" role="dialog" aria-label="Chat with Buddy" hidden>
+        <div class="chat-header">
+            <span class="chat-avatar" aria-hidden="true">🦉</span>
+            <div>
+                <strong>Buddy</strong>
+                <small>Your study helper</small>
+            </div>
+        </div>
+        <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form" autocomplete="off">
+            <input id="chat-input" type="text" maxlength="500" placeholder="Type your question..."
+                aria-label="Your question">
+            <button id="chat-send" type="submit" aria-label="Send">➤</button>
+        </form>
+    </div>
+
+    <script>
+        /* =====================================================================
+           1. LESSON CONTENT (placeholder sample data - edit freely)
+           Each subject has chapters, each chapter has lessons with simple notes.
+           Every "notes" entry is a list of paragraphs shown in the reader.
+           ===================================================================== */
+        const SUBJECTS = [
+            {
+                id: "math", name: "Mathematics", emoji: "🔢", color: "blue",
+                chapters: [
+                    {
+                        name: "Numbers up to 1000", lessons: [
+                            {
+                                name: "Reading big numbers", notes: [
+                                    "A 3-digit number has hundreds, tens and ones.",
+                                    "In 345 there are 3 hundreds, 4 tens and 5 ones.",
+                                    "Try it: how many hundreds are in 708?"]
+                            },
+                            {
+                                name: "Comparing numbers", notes: [
+                                    "To compare, look at the hundreds first. The bigger hundreds digit wins.",
+                                    "If the hundreds are the same, look at the tens, then the ones.",
+                                    "We write 452 > 425 because 5 tens is more than 2 tens."]
+                            },
+                        ]
+                    },
+                    {
+                        name: "Addition and Subtraction", lessons: [
+                            {
+                                name: "Adding with carrying", notes: [
+                                    "Add the ones first. If you get 10 or more, carry 1 ten to the tens column.",
+                                    "Example: 47 + 38. 7 + 8 = 15, write 5 and carry 1. 4 + 3 + 1 = 8. Answer: 85."]
+                            },
+                            {
+                                name: "Subtracting with borrowing", notes: [
+                                    "If the top ones digit is smaller, borrow 1 ten from the tens column.",
+                                    "Example: 52 − 17. Borrow to make 12 − 7 = 5, then 4 − 1 = 3. Answer: 35."]
+                            },
+                            {
+                                name: "Word problems", notes: [
+                                    "Read the story slowly. Find the numbers and the question.",
+                                    "Words like 'in all' or 'altogether' mean add. Words like 'left' mean subtract."]
+                            },
+                        ]
+                    },
+                    {
+                        name: "Shapes", lessons: [
+                            {
+                                name: "2D shapes", notes: [
+                                    "A triangle has 3 sides. A square has 4 equal sides. A circle has no corners.",
+                                    "Look around you: a clock is a circle and a book is a rectangle!"]
+                            },
+                        ]
+                    },
+                ],
+            },
+            {
+                id: "science", name: "General Science", emoji: "🔬", color: "green",
+                chapters: [
+                    {
+                        name: "Living Things", lessons: [
+                            {
+                                name: "Living and non-living", notes: [
+                                    "Living things grow, breathe, eat and have babies.",
+                                    "A cat and a tree are living. A stone and a chair are non-living."]
+                            },
+                            {
+                                name: "Parts of a plant", notes: [
+                                    "Roots hold the plant in the soil and drink water.",
+                                    "The stem carries water up. Leaves make food using sunlight."]
+                            },
+                        ]
+                    },
+                    {
+                        name: "Our Body", lessons: [
+                            {
+                                name: "Our five senses", notes: [
+                                    "We see with our eyes, hear with our ears and smell with our nose.",
+                                    "We taste with our tongue and feel with our skin."]
+                            },
+                            {
+                                name: "Healthy habits", notes: [
+                                    "Wash your hands before eating. Brush your teeth twice a day.",
+                                    "Eat fruits and vegetables, drink clean water and sleep well."]
+                            },
+                        ]
+                    },
+                    {
+                        name: "Water and Weather", lessons: [
+                            {
+                                name: "Where does rain come from?", notes: [
+                                    "The sun warms water in rivers and seas. The water rises as tiny drops.",
+                                    "The drops join together to make clouds. When clouds get heavy, it rains!"]
+                            },
+                        ]
+                    },
+                ],
+            },
+            {
+                id: "english", name: "English Grammar", emoji: "📖", color: "orange",
+                chapters: [
+                    {
+                        name: "Naming Words", lessons: [
+                            {
+                                name: "What is a noun?", notes: [
+                                    "A noun is a naming word. It names a person, place, animal or thing.",
+                                    "Examples: Rina, school, dog, ball."]
+                            },
+                            {
+                                name: "One and many", notes: [
+                                    "Add -s to make most nouns mean 'many': one book, two books.",
+                                    "Some words change: one child, many children."]
+                            },
+                        ]
+                    },
+                    {
+                        name: "Action Words", lessons: [
+                            {
+                                name: "What is a verb?", notes: [
+                                    "A verb is an action word. It tells what someone does.",
+                                    "Examples: run, jump, eat, read. 'The bird sings.'"]
+                            },
+                        ]
+                    },
+                    {
+                        name: "Describing Words", lessons: [
+                            {
+                                name: "What is an adjective?", notes: [
+                                    "An adjective tells us more about a noun.",
+                                    "Examples: a red ball, a tall tree, a happy girl."]
+                            },
+                            {
+                                name: "Opposites", notes: [
+                                    "Some adjectives have opposites: big and small, hot and cold.",
+                                    "Can you think of the opposite of 'fast'?"]
+                            },
+                        ]
+                    },
+                ],
+            },
+        ];
+
+        /* =====================================================================
+           2. DASHBOARD NAVIGATION  (Home -> Chapters -> Lessons -> Reader)
+           ===================================================================== */
+        const state = { subject: null, chapter: null };
+
+        function showView(name) {
+            document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+            document.getElementById("view-" + name).classList.add("active");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        // Small helper: build a clickable card/button with an emoji and a label.
+        function makeButton(className, emoji, label, sub, onClick) {
+            const btn = document.createElement("button");
+            btn.className = className;
+            btn.innerHTML = `<span class="item-emoji" aria-hidden="true"></span>
+                   <span class="item-text"><span class="item-label"></span><span class="item-sub"></span></span>`;
+            btn.querySelector(".item-emoji").textContent = emoji;
+            btn.querySelector(".item-label").textContent = label;
+            btn.querySelector(".item-sub").textContent = sub || "";
+            btn.addEventListener("click", onClick);
+            return btn;
+        }
+
+        function renderSubjects() {
+            const grid = document.getElementById("subject-grid");
+            SUBJECTS.forEach(subject => {
+                const card = makeButton(`subject-card color-${subject.color}`, subject.emoji, subject.name,
+                    `${subject.chapters.length} chapters`, () => openSubject(subject));
+                grid.appendChild(card);
+            });
+        }
+
+        function openSubject(subject) {
+            state.subject = subject;
+            document.getElementById("chapters-title").textContent = `${subject.emoji} ${subject.name}`;
+            const list = document.getElementById("chapter-list");
+            list.replaceChildren();
+            subject.chapters.forEach((chapter, i) => {
+                list.appendChild(makeButton(`list-item color-${subject.color}`, String(i + 1), chapter.name,
+                    `${chapter.lessons.length} lessons`, () => openChapter(chapter)));
+            });
+            showView("chapters");
+        }
+
+        function openChapter(chapter) {
+            state.chapter = chapter;
+            document.getElementById("lessons-title").textContent = chapter.name;
+            const list = document.getElementById("lesson-list");
+            list.replaceChildren();
+            chapter.lessons.forEach(lesson => {
+                list.appendChild(makeButton(`list-item color-${state.subject.color}`, "📝", lesson.name,
+                    "Tap to read", () => openLesson(lesson)));
+            });
+            showView("lessons");
+        }
+
+        function openLesson(lesson) {
+            document.getElementById("reader-title").textContent = lesson.name;
+            const body = document.getElementById("reader-body");
+            body.replaceChildren();
+            lesson.notes.forEach(text => {
+                const p = document.createElement("p");
+                p.textContent = text;
+                body.appendChild(p);
+            });
+            showView("reader");
+        }
+
+        document.querySelectorAll(".back-btn").forEach(btn =>
+            btn.addEventListener("click", () => showView(btn.dataset.back)));
+
+        renderSubjects();
+
+        /* =====================================================================
+           3. BUDDY CHAT WIDGET
+           The browser keeps the chat history and sends all of it to Flask's
+           POST /api/chat on every question. Flask adds the textbook chunks and
+           calls Claude, then returns {"reply": "..."} or {"error": "..."}.
+           ===================================================================== */
+        const toggleBtn = document.getElementById("chat-toggle");
+        const chatWindow = document.getElementById("chat-window");
+        const messagesBox = document.getElementById("chat-messages");
+        const form = document.getElementById("chat-form");
+        const input = document.getElementById("chat-input");
+        const sendBtn = document.getElementById("chat-send");
+
+        const WELCOME = "Hi there! I'm Buddy 🦉 Ask me anything from your textbook, and we'll learn together!";
+        const history = [];   // [{role: "user" | "assistant", content: "..."}] sent to the server
+
+        // Open/close the chat box when the round icon is clicked.
+        toggleBtn.addEventListener("click", () => {
+            const opening = chatWindow.hidden;
+            chatWindow.hidden = !opening;
+            toggleBtn.classList.toggle("open", opening);
+            toggleBtn.setAttribute("aria-expanded", String(opening));
+            toggleBtn.setAttribute("aria-label", opening ? "Close chat with Buddy" : "Open chat with Buddy");
+            if (opening) input.focus();
+        });
+
+        // Add a chat bubble. textContent (not innerHTML) keeps replies safe to display.
+        function addBubble(role, text, extraClass) {
+            const bubble = document.createElement("div");
+            bubble.className = `bubble ${role}` + (extraClass ? " " + extraClass : "");
+            bubble.textContent = text;
+            messagesBox.appendChild(bubble);
+            messagesBox.scrollTop = messagesBox.scrollHeight;   // auto-scroll to the newest message
+            return bubble;
+        }
+
+        // The welcome message is shown, but not sent to Claude (clean_history drops a leading assistant turn anyway).
+        addBubble("assistant", WELCOME);
+
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+            const text = input.value.trim();
+            if (!text) return;
+
+            addBubble("user", text);
+            history.push({ role: "user", content: text });
+            input.value = "";
+            input.disabled = sendBtn.disabled = true;
+
+            const thinking = addBubble("assistant", "Buddy is thinking... 💭", "thinking");
+
+            try {
+                const res = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ messages: history }),
+                });
+                const data = await res.json().catch(() => ({}));
+                thinking.remove();
+                if (res.ok && data.reply) {
+                    addBubble("assistant", data.reply);
+                    history.push({ role: "assistant", content: data.reply });
+                } else {
+                    // Don't keep a question Buddy couldn't answer, so the child can simply ask again.
+                    history.pop();
+                    addBubble("assistant", data.error || "Oops! Something went wrong. Please try again. 🙈", "error");
+                }
+            } catch (err) {
+                thinking.remove();
+                history.pop();
+                addBubble("assistant", "I can't reach my brain right now. Is the internet on? 🔌", "error");
+            } finally {
+                input.disabled = sendBtn.disabled = false;
+                input.focus();
+            }
+        });
+    </script>
+</body>
+
+</html>
