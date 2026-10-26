@@ -183,7 +183,7 @@ def index():
     return send_from_directory(app.static_folder, "index.html")
 
 
-@app.post("/api/chat")
+@app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json(silent=True) or {}
     messages = clean_history(data.get("messages"))
