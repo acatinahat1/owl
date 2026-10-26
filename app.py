@@ -19,14 +19,17 @@ How the pieces link together
 
 The Anthropic API key lives only in .env on the server and is never sent to the browser.
 
+ChromaDB and the embedding model are heavy (chromadb, sentence-transformers, torch),
+so they are NOT loaded when the server starts. get_collection() loads them the first
+time a question reaches /api/chat and reuses them for every request after that.
+
 Run:  python app.py   then open http://127.0.0.1:5000
 """
 
 import os
+import threading
 
 import anthropic
-import chromadb
-from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 
@@ -64,7 +67,8 @@ HOW YOU TALK
 - Use one or two friendly emojis per message, not more.
 - Reply in the same language the child writes in (for example Bangla or English).
 - For homework, guide with hints and small steps instead of just giving the answer.
-- If the child gets something wrong, never make them feel bad: "Good try! Let's look at it together."
+- If the child gets something wrong, never make them feel bad: "Good try! Let's look at it together.
+- Also talk in Banglish"
 
 KEEPING CHILDREN SAFE
 - Keep everything suitable for an 8-year-old. No violence, scary details, romance, bad language or grown-up topics. If asked, gently say it's a question for a grown-up and suggest something fun from their book.
@@ -79,16 +83,42 @@ FRIENDLY_ERROR = "Oops! My thinking cap fell off for a second. 🧢 Can you ask 
 REFUSAL_REPLY = ("Hmm, that's a question for a grown-up. Let's learn something fun from your book instead! 📚")
 
 # ---------------------------------------------------------------------------
-# App, Claude client and ChromaDB connection (created once at startup)
+# App and Claude client (created once at startup - both are lightweight)
 # ---------------------------------------------------------------------------
 app = Flask(__name__, static_folder="static")   # files in ./static are served at /static/...
 client = anthropic.Anthropic()                   # picks up ANTHROPIC_API_KEY from the environment
 
-# The embedding function must be the same one used to build the database,
-# otherwise question vectors won't match the stored textbook vectors.
-embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=EMBEDDING_MODEL)
-chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
-collection = chroma_client.get_collection(name=COLLECTION_NAME, embedding_function=embedding_fn)
+# ---------------------------------------------------------------------------
+# ChromaDB connection (created lazily on the first chat request)
+# ---------------------------------------------------------------------------
+_collection = None
+_collection_lock = threading.Lock()   # stops two first requests from loading the model twice
+
+
+def get_collection():
+    """Open the textbook collection in ./chroma_db the first time it is needed.
+
+    The heavy imports live in here so server startup stays small. The result is
+    cached, so every later request reuses the same client, model and collection.
+    The database is only opened with get_collection(), never created or changed.
+    """
+    global _collection
+    if _collection is None:
+        with _collection_lock:
+            if _collection is None:  # another thread may have loaded it while we waited
+                import chromadb
+                from chromadb.utils import embedding_functions
+
+                # The embedding function must be the same one used to build the database,
+                # otherwise question vectors won't match the stored textbook vectors.
+                embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name=EMBEDDING_MODEL
+                )
+                chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
+                _collection = chroma_client.get_collection(
+                    name=COLLECTION_NAME, embedding_function=embedding_fn
+                )
+    return _collection
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +157,7 @@ def clean_history(raw):
 
 def retrieve_context(question):
     """Return the top N_RESULTS textbook chunks for the question as one string."""
+    collection = get_collection()
     results = collection.query(query_texts=[question], n_results=N_RESULTS)
     chunks = (results.get("documents") or [[]])[0]
     return "\n\n---\n\n".join(chunk.strip() for chunk in chunks if chunk and chunk.strip())
@@ -206,6 +237,8 @@ def chat():
 if __name__ == "__main__":
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("\n  ⚠️  ANTHROPIC_API_KEY is missing. Add it to your .env file.\n")
-    print(f"  Buddy's Virtual Tutorial is running with {MODEL} and {collection.count()} textbook chunks.")
+    # Counting chunks needs the database open, which would undo the lazy loading,
+    # so the textbook is loaded on the first question instead of here.
+    print(f"  Buddy's Virtual Tutorial is running with {MODEL}. Textbook loads on the first question.")
     print("  Open http://127.0.0.1:5000 in your browser.\n")
     app.run(host="127.0.0.1", port=5000, debug=False)
