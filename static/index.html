@@ -7,16 +7,61 @@
     <title>Buddy's Virtual Tutorial</title>
     <!-- Flask serves everything in the ./static folder at /static/... -->
     <link rel="stylesheet" href="/static/style.css">
+    <!-- Bangla font, so Bangla text looks good even on devices without one -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap">
+    <style>
+        /* Language toggle (can be moved into style.css) */
+        .lang-toggle {
+            margin-left: auto;
+            display: inline-flex;
+            border: 2px solid currentColor;
+            border-radius: 999px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .lang-toggle button {
+            font: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.35rem 0.9rem;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .lang-toggle button[aria-pressed="true"] {
+            background: #ffb703;
+            color: #1d1d1d;
+        }
+
+        .lang-toggle button:focus-visible {
+            outline: 3px solid #219ebc;
+            outline-offset: -3px;
+        }
+
+        html[lang="bn"] body,
+        html[lang="bn"] button,
+        html[lang="bn"] input {
+            font-family: "Noto Sans Bengali", system-ui, sans-serif;
+        }
+    </style>
 </head>
 
 <body>
 
-    <!-- ================= Header ================= -->
     <header class="site-header">
         <span class="logo" aria-hidden="true">🦉</span>
         <div>
-            <h1>Buddy's Virtual Tutorial</h1>
-            <p class="tagline">Learning is fun! Pick a subject to start. ✨</p>
+            <h1 data-i18n="title">Buddy's Virtual Tutorial</h1>
+            <p class="tagline" data-i18n="tagline">Learning is fun! Pick a subject to start. ✨</p>
+        </div>
+        <div class="lang-toggle" role="group" data-i18n-aria-label="langGroup" aria-label="Choose language">
+            <button type="button" data-lang="en" aria-pressed="true">English</button>
+            <button type="button" data-lang="bn" aria-pressed="false" lang="bn">বাংলা</button>
         </div>
     </header>
 
@@ -27,31 +72,32 @@
 
         <!-- Homepage: grid of subjects -->
         <section id="view-home" class="view active" aria-labelledby="home-title">
-            <h2 id="home-title" class="view-title">My Subjects</h2>
+            <h2 id="home-title" class="view-title" data-i18n="homeTitle">My Subjects</h2>
             <div id="subject-grid" class="card-grid"></div>
         </section>
 
         <!-- Chapter view: chapters of the chosen subject -->
         <section id="view-chapters" class="view" aria-labelledby="chapters-title">
-            <button class="back-btn" data-back="home">⬅ Back to Subjects</button>
+            <button class="back-btn" data-back="home" data-i18n="backSubjects">⬅ Back to Subjects</button>
             <h2 id="chapters-title" class="view-title"></h2>
             <div id="chapter-list" class="list"></div>
         </section>
 
         <!-- Lesson view: lessons of the chosen chapter -->
         <section id="view-lessons" class="view" aria-labelledby="lessons-title">
-            <button class="back-btn" data-back="chapters">⬅ Back to Chapters</button>
+            <button class="back-btn" data-back="chapters" data-i18n="backChapters">⬅ Back to Chapters</button>
             <h2 id="lessons-title" class="view-title"></h2>
             <div id="lesson-list" class="list"></div>
         </section>
 
         <!-- Reader: the lesson notes -->
         <section id="view-reader" class="view" aria-labelledby="reader-title">
-            <button class="back-btn" data-back="lessons">⬅ Back to Lessons</button>
+            <button class="back-btn" data-back="lessons" data-i18n="backLessons">⬅ Back to Lessons</button>
             <article class="reader">
                 <h2 id="reader-title"></h2>
                 <div id="reader-body"></div>
-                <p class="reader-tip">🤔 Have a question about this lesson? Ask Buddy in the corner!</p>
+                <p class="reader-tip" data-i18n="readerTip">🤔 Have a question about this lesson? Ask Buddy in the
+                    corner!</p>
             </article>
         </section>
     </main>
@@ -63,157 +109,301 @@
         <span class="icon-close" aria-hidden="true">✖</span>
     </button>
 
-    <div id="chat-window" class="chat-window" role="dialog" aria-label="Chat with Buddy" hidden>
+    <div id="chat-window" class="chat-window" role="dialog" aria-label="Chat with Buddy"
+        data-i18n-aria-label="chatDialog" hidden>
         <div class="chat-header">
             <span class="chat-avatar" aria-hidden="true">🦉</span>
             <div>
-                <strong>Buddy</strong>
-                <small>Your study helper</small>
+                <strong data-i18n="buddyName">Buddy</strong>
+                <small data-i18n="buddyRole">Your study helper</small>
             </div>
         </div>
         <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
         <form id="chat-form" class="chat-form" autocomplete="off">
             <input id="chat-input" type="text" maxlength="500" placeholder="Type your question..."
-                aria-label="Your question">
-            <button id="chat-send" type="submit" aria-label="Send">➤</button>
+                aria-label="Your question" data-i18n-placeholder="placeholder" data-i18n-aria-label="inputLabel">
+            <button id="chat-send" type="submit" aria-label="Send" data-i18n-aria-label="send">➤</button>
         </form>
     </div>
 
     <script>
         /* =====================================================================
+           0. LANGUAGE (English / Bangla)
+           UI strings live in I18N. Lesson content carries its Bangla next to the
+           English as name_bn / notes_bn; if one is missing, English is shown.
+           ===================================================================== */
+        const I18N = {
+            en: {
+                title: "Buddy's Virtual Tutorial",
+                tagline: "Learning is fun! Pick a subject to start. ✨",
+                langGroup: "Choose language",
+                homeTitle: "My Subjects",
+                backSubjects: "⬅ Back to Subjects",
+                backChapters: "⬅ Back to Chapters",
+                backLessons: "⬅ Back to Lessons",
+                readerTip: "🤔 Have a question about this lesson? Ask Buddy in the corner!",
+                chapters: n => `${n} chapters`,
+                lessons: n => `${n} lessons`,
+                tapToRead: "Tap to read",
+                chatOpen: "Open chat with Buddy",
+                chatClose: "Close chat with Buddy",
+                chatDialog: "Chat with Buddy",
+                buddyName: "Buddy",
+                buddyRole: "Your study helper",
+                placeholder: "Type your question...",
+                inputLabel: "Your question",
+                send: "Send",
+                welcome: "Hi there! I'm Buddy 🦉 Ask me anything from your textbook, and we'll learn together!",
+                thinking: "Buddy is thinking... 💭",
+                error: "Oops! Something went wrong. Please try again. 🙈",
+                offline: "I can't reach my brain right now. Is the internet on? 🔌",
+            },
+            bn: {
+                title: "বাডির ভার্চুয়াল পাঠশালা",
+                tagline: "শেখা খুব মজার! শুরু করতে একটা বিষয় বেছে নাও। ✨",
+                langGroup: "ভাষা বেছে নাও",
+                homeTitle: "আমার বিষয়গুলো",
+                backSubjects: "⬅ বিষয়ে ফিরে যাও",
+                backChapters: "⬅ অধ্যায়ে ফিরে যাও",
+                backLessons: "⬅ পাঠে ফিরে যাও",
+                readerTip: "🤔 এই পাঠ নিয়ে কোনো প্রশ্ন আছে? কোণের বাডিকে জিজ্ঞেস করো!",
+                chapters: n => `${toBnDigits(n)}টি অধ্যায়`,
+                lessons: n => `${toBnDigits(n)}টি পাঠ`,
+                tapToRead: "পড়তে চাপ দাও",
+                chatOpen: "বাডির সাথে চ্যাট খোলো",
+                chatClose: "বাডির সাথে চ্যাট বন্ধ করো",
+                chatDialog: "বাডির সাথে চ্যাট",
+                buddyName: "বাডি",
+                buddyRole: "তোমার পড়ার সাথী",
+                placeholder: "তোমার প্রশ্ন লেখো...",
+                inputLabel: "তোমার প্রশ্ন",
+                send: "পাঠাও",
+                welcome: "হ্যালো! আমি বাডি 🦉 তোমার বই থেকে যা খুশি জিজ্ঞেস করো, চলো একসাথে শিখি!",
+                thinking: "বাডি ভাবছে... 💭",
+                error: "ওহো! কিছু একটা গোলমাল হয়েছে। আবার চেষ্টা করো। 🙈",
+                offline: "এখন আমি উত্তর খুঁজে আনতে পারছি না। ইন্টারনেট চালু আছে তো? 🔌",
+            },
+        };
+
+        let LANG = "en";
+        try { if (localStorage.getItem("lang") === "bn") LANG = "bn"; } catch (e) { }
+
+        function toBnDigits(value) {
+            return String(value).replace(/\d/g, d => "০১২৩৪৫৬৭৮৯"[d]);
+        }
+
+        // UI string by key; function entries take an argument (e.g. a count).
+        function t(key, arg) {
+            const entry = I18N[LANG][key] ?? I18N.en[key];
+            return typeof entry === "function" ? entry(arg) : entry;
+        }
+
+        // Content field in the current language: L(lesson, "notes") -> notes_bn in Bangla mode.
+        function L(item, field) {
+            return (LANG === "bn" && item[field + "_bn"]) || item[field];
+        }
+
+        /* =====================================================================
            1. LESSON CONTENT (placeholder sample data - edit freely)
            Each subject has chapters, each chapter has lessons with simple notes.
            Every "notes" entry is a list of paragraphs shown in the reader.
+           Add name_bn / notes_bn beside the English to show Bangla.
            ===================================================================== */
         const SUBJECTS = [
             {
-                id: "math", name: "Mathematics", emoji: "🔢", color: "blue",
+                id: "math", name: "Math", name_bn: "গণিত", emoji: "🔢", color: "blue",
                 chapters: [
                     {
-                        name: "Numbers up to 1000", lessons: [
+                        name: "Numbers up to 1000", name_bn: "১০০০ পর্যন্ত সংখ্যা", lessons: [
                             {
-                                name: "Reading big numbers", notes: [
+                                name: "Reading big numbers", name_bn: "বড় সংখ্যা পড়া",
+                                notes: [
                                     "A 3-digit number has hundreds, tens and ones.",
                                     "In 345 there are 3 hundreds, 4 tens and 5 ones.",
-                                    "Try it: how many hundreds are in 708?"]
+                                    "Try it: how many hundreds are in 708?"],
+                                notes_bn: [
+                                    "তিন অঙ্কের সংখ্যায় শতক, দশক আর একক থাকে।",
+                                    "৩৪৫ সংখ্যায় আছে ৩টি শতক, ৪টি দশক আর ৫টি একক।",
+                                    "চেষ্টা করো: ৭০৮ সংখ্যায় কয়টি শতক আছে?"]
                             },
                             {
-                                name: "Comparing numbers", notes: [
+                                name: "Comparing numbers", name_bn: "সংখ্যার তুলনা",
+                                notes: [
                                     "To compare, look at the hundreds first. The bigger hundreds digit wins.",
                                     "If the hundreds are the same, look at the tens, then the ones.",
-                                    "We write 452 > 425 because 5 tens is more than 2 tens."]
+                                    "We write 452 > 425 because 5 tens is more than 2 tens."],
+                                notes_bn: [
+                                    "তুলনা করতে প্রথমে শতকের ঘর দেখো। যার শতকের অঙ্ক বড়, সেই সংখ্যাটি বড়।",
+                                    "শতক সমান হলে দশক দেখো, তারপর একক দেখো।",
+                                    "আমরা লিখি ৪৫২ > ৪২৫, কারণ ৫ দশক ২ দশকের চেয়ে বেশি।"]
                             },
                         ]
                     },
                     {
-                        name: "Addition and Subtraction", lessons: [
+                        name: "Addition and Subtraction", name_bn: "যোগ ও বিয়োগ", lessons: [
                             {
-                                name: "Adding with carrying", notes: [
+                                name: "Adding with carrying", name_bn: "হাতে রেখে যোগ",
+                                notes: [
                                     "Add the ones first. If you get 10 or more, carry 1 ten to the tens column.",
-                                    "Example: 47 + 38. 7 + 8 = 15, write 5 and carry 1. 4 + 3 + 1 = 8. Answer: 85."]
+                                    "Example: 47 + 38. 7 + 8 = 15, write 5 and carry 1. 4 + 3 + 1 = 8. Answer: 85."],
+                                notes_bn: [
+                                    "প্রথমে এককের ঘর যোগ করো। ১০ বা তার বেশি হলে ১ দশক হাতে রেখে দশকের ঘরে নিয়ে যাও।",
+                                    "উদাহরণ: ৪৭ + ৩৮। ৭ + ৮ = ১৫, ৫ লেখো আর ১ হাতে রাখো। ৪ + ৩ + ১ = ৮। উত্তর: ৮৫।"]
                             },
                             {
-                                name: "Subtracting with borrowing", notes: [
+                                name: "Subtracting with borrowing", name_bn: "ধার করে বিয়োগ",
+                                notes: [
                                     "If the top ones digit is smaller, borrow 1 ten from the tens column.",
-                                    "Example: 52 − 17. Borrow to make 12 − 7 = 5, then 4 − 1 = 3. Answer: 35."]
+                                    "Example: 52 − 17. Borrow to make 12 − 7 = 5, then 4 − 1 = 3. Answer: 35."],
+                                notes_bn: [
+                                    "উপরের এককের অঙ্ক ছোট হলে দশকের ঘর থেকে ১ দশক ধার নাও।",
+                                    "উদাহরণ: ৫২ − ১৭। ধার নিয়ে ১২ − ৭ = ৫, তারপর ৪ − ১ = ৩। উত্তর: ৩৫।"]
                             },
                             {
-                                name: "Word problems", notes: [
+                                name: "Word problems", name_bn: "কথায় লেখা অঙ্ক",
+                                notes: [
                                     "Read the story slowly. Find the numbers and the question.",
-                                    "Words like 'in all' or 'altogether' mean add. Words like 'left' mean subtract."]
+                                    "Words like 'in all' or 'altogether' mean add. Words like 'left' mean subtract."],
+                                notes_bn: [
+                                    "গল্পটি ধীরে ধীরে পড়ো। সংখ্যাগুলো আর প্রশ্নটি খুঁজে বের করো।",
+                                    "'মোট' বা 'সব মিলিয়ে' মানে যোগ। 'বাকি থাকে' মানে বিয়োগ।"]
                             },
                         ]
                     },
                     {
-                        name: "Shapes", lessons: [
+                        name: "Shapes", name_bn: "আকৃতি", lessons: [
                             {
-                                name: "2D shapes", notes: [
+                                name: "2D shapes", name_bn: "সমতল আকৃতি",
+                                notes: [
                                     "A triangle has 3 sides. A square has 4 equal sides. A circle has no corners.",
-                                    "Look around you: a clock is a circle and a book is a rectangle!"]
+                                    "Look around you: a clock is a circle and a book is a rectangle!"],
+                                notes_bn: [
+                                    "ত্রিভুজের ৩টি বাহু। বর্গের ৪টি সমান বাহু। বৃত্তের কোনো কোণা নেই।",
+                                    "চারপাশে তাকাও: ঘড়ি একটি বৃত্ত আর বই একটি আয়ত!"]
                             },
                         ]
                     },
                 ],
             },
             {
-                id: "science", name: "General Science", emoji: "🔬", color: "green",
+                id: "science", name: "Science", name_bn: "বিজ্ঞান", emoji: "🔬", color: "green",
                 chapters: [
                     {
-                        name: "Living Things", lessons: [
+                        name: "Living Things", name_bn: "জীবজগৎ", lessons: [
                             {
-                                name: "Living and non-living", notes: [
+                                name: "Living and non-living", name_bn: "জীব ও জড়",
+                                notes: [
                                     "Living things grow, breathe, eat and have babies.",
-                                    "A cat and a tree are living. A stone and a chair are non-living."]
+                                    "A cat and a tree are living. A stone and a chair are non-living."],
+                                notes_bn: [
+                                    "জীব বড় হয়, শ্বাস নেয়, খাবার খায় আর বাচ্চা জন্ম দেয়।",
+                                    "বিড়াল আর গাছ জীব। পাথর আর চেয়ার জড়।"]
                             },
                             {
-                                name: "Parts of a plant", notes: [
+                                name: "Parts of a plant", name_bn: "গাছের অংশ",
+                                notes: [
                                     "Roots hold the plant in the soil and drink water.",
-                                    "The stem carries water up. Leaves make food using sunlight."]
+                                    "The stem carries water up. Leaves make food using sunlight."],
+                                notes_bn: [
+                                    "মূল গাছকে মাটিতে শক্ত করে ধরে রাখে আর পানি শুষে নেয়।",
+                                    "কাণ্ড পানি উপরে নিয়ে যায়। পাতা সূর্যের আলো দিয়ে খাবার তৈরি করে।"]
                             },
                         ]
                     },
                     {
-                        name: "Our Body", lessons: [
+                        name: "Our Body", name_bn: "আমাদের শরীর", lessons: [
                             {
-                                name: "Our five senses", notes: [
+                                name: "Our five senses", name_bn: "আমাদের পাঁচটি ইন্দ্রিয়",
+                                notes: [
                                     "We see with our eyes, hear with our ears and smell with our nose.",
-                                    "We taste with our tongue and feel with our skin."]
+                                    "We taste with our tongue and feel with our skin."],
+                                notes_bn: [
+                                    "আমরা চোখ দিয়ে দেখি, কান দিয়ে শুনি আর নাক দিয়ে গন্ধ নিই।",
+                                    "জিভ দিয়ে স্বাদ নিই আর ত্বক দিয়ে অনুভব করি।"]
                             },
                             {
-                                name: "Healthy habits", notes: [
+                                name: "Healthy habits", name_bn: "ভালো অভ্যাস",
+                                notes: [
                                     "Wash your hands before eating. Brush your teeth twice a day.",
-                                    "Eat fruits and vegetables, drink clean water and sleep well."]
+                                    "Eat fruits and vegetables, drink clean water and sleep well."],
+                                notes_bn: [
+                                    "খাওয়ার আগে হাত ধোও। দিনে দুইবার দাঁত ব্রাশ করো।",
+                                    "ফল আর শাকসবজি খাও, বিশুদ্ধ পানি পান করো আর ভালো করে ঘুমাও।"]
                             },
                         ]
                     },
                     {
-                        name: "Water and Weather", lessons: [
+                        name: "Water and Weather", name_bn: "পানি ও আবহাওয়া", lessons: [
                             {
-                                name: "Where does rain come from?", notes: [
+                                name: "Where does rain come from?", name_bn: "বৃষ্টি কোথা থেকে আসে?",
+                                notes: [
                                     "The sun warms water in rivers and seas. The water rises as tiny drops.",
-                                    "The drops join together to make clouds. When clouds get heavy, it rains!"]
+                                    "The drops join together to make clouds. When clouds get heavy, it rains!"],
+                                notes_bn: [
+                                    "সূর্য নদী আর সাগরের পানি গরম করে। পানি ছোট ছোট কণা হয়ে উপরে ওঠে।",
+                                    "কণাগুলো একসাথে মিলে মেঘ তৈরি হয়। মেঘ ভারী হলে বৃষ্টি নামে!"]
                             },
                         ]
                     },
                 ],
             },
             {
-                id: "english", name: "English Grammar", emoji: "📖", color: "orange",
+                id: "english", name: "English", name_bn: "ইংরেজি", emoji: "📖", color: "orange",
                 chapters: [
                     {
-                        name: "Naming Words", lessons: [
+                        name: "Naming Words", name_bn: "নামের শব্দ (Noun)", lessons: [
                             {
-                                name: "What is a noun?", notes: [
+                                name: "What is a noun?", name_bn: "Noun কী?",
+                                notes: [
                                     "A noun is a naming word. It names a person, place, animal or thing.",
-                                    "Examples: Rina, school, dog, ball."]
+                                    "Examples: Rina, school, dog, ball."],
+                                notes_bn: [
+                                    "Noun হলো নামের শব্দ। এটি কোনো মানুষ, জায়গা, প্রাণী বা জিনিসের নাম বোঝায়।",
+                                    "উদাহরণ: Rina, school, dog, ball।"]
                             },
                             {
-                                name: "One and many", notes: [
+                                name: "One and many", name_bn: "এক আর অনেক",
+                                notes: [
                                     "Add -s to make most nouns mean 'many': one book, two books.",
-                                    "Some words change: one child, many children."]
+                                    "Some words change: one child, many children."],
+                                notes_bn: [
+                                    "বেশিরভাগ noun-এর শেষে -s যোগ করলে 'অনেক' বোঝায়: one book, two books।",
+                                    "কিছু শব্দ পুরোটাই বদলে যায়: one child, many children।"]
                             },
                         ]
                     },
                     {
-                        name: "Action Words", lessons: [
+                        name: "Action Words", name_bn: "কাজের শব্দ (Verb)", lessons: [
                             {
-                                name: "What is a verb?", notes: [
+                                name: "What is a verb?", name_bn: "Verb কী?",
+                                notes: [
                                     "A verb is an action word. It tells what someone does.",
-                                    "Examples: run, jump, eat, read. 'The bird sings.'"]
+                                    "Examples: run, jump, eat, read. 'The bird sings.'"],
+                                notes_bn: [
+                                    "Verb হলো কাজের শব্দ। কেউ কী করে, তা বলে দেয়।",
+                                    "উদাহরণ: run, jump, eat, read। 'The bird sings.'"]
                             },
                         ]
                     },
                     {
-                        name: "Describing Words", lessons: [
+                        name: "Describing Words", name_bn: "গুণের শব্দ (Adjective)", lessons: [
                             {
-                                name: "What is an adjective?", notes: [
+                                name: "What is an adjective?", name_bn: "Adjective কী?",
+                                notes: [
                                     "An adjective tells us more about a noun.",
-                                    "Examples: a red ball, a tall tree, a happy girl."]
+                                    "Examples: a red ball, a tall tree, a happy girl."],
+                                notes_bn: [
+                                    "Adjective কোনো noun সম্পর্কে আরও কিছু বলে দেয়।",
+                                    "উদাহরণ: a red ball, a tall tree, a happy girl।"]
                             },
                             {
-                                name: "Opposites", notes: [
+                                name: "Opposites", name_bn: "বিপরীত শব্দ",
+                                notes: [
                                     "Some adjectives have opposites: big and small, hot and cold.",
-                                    "Can you think of the opposite of 'fast'?"]
+                                    "Can you think of the opposite of 'fast'?"],
+                                notes_bn: [
+                                    "কিছু adjective-এর বিপরীত শব্দ আছে: big আর small, hot আর cold।",
+                                    "'fast'-এর বিপরীত শব্দ কী, বলতে পারো?"]
                             },
                         ]
                     },
@@ -224,7 +414,7 @@
         /* =====================================================================
            2. DASHBOARD NAVIGATION  (Home -> Chapters -> Lessons -> Reader)
            ===================================================================== */
-        const state = { subject: null, chapter: null };
+        const state = { subject: null, chapter: null, lesson: null };
 
         function showView(name) {
             document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
@@ -247,42 +437,45 @@
 
         function renderSubjects() {
             const grid = document.getElementById("subject-grid");
+            grid.replaceChildren();   // safe to call again when the language changes
             SUBJECTS.forEach(subject => {
-                const card = makeButton(`subject-card color-${subject.color}`, subject.emoji, subject.name,
-                    `${subject.chapters.length} chapters`, () => openSubject(subject));
+                const card = makeButton(`subject-card color-${subject.color}`, subject.emoji, L(subject, "name"),
+                    t("chapters", subject.chapters.length), () => openSubject(subject));
                 grid.appendChild(card);
             });
         }
 
         function openSubject(subject) {
             state.subject = subject;
-            document.getElementById("chapters-title").textContent = `${subject.emoji} ${subject.name}`;
+            document.getElementById("chapters-title").textContent = `${subject.emoji} ${L(subject, "name")}`;
             const list = document.getElementById("chapter-list");
             list.replaceChildren();
             subject.chapters.forEach((chapter, i) => {
-                list.appendChild(makeButton(`list-item color-${subject.color}`, String(i + 1), chapter.name,
-                    `${chapter.lessons.length} lessons`, () => openChapter(chapter)));
+                const number = LANG === "bn" ? toBnDigits(i + 1) : String(i + 1);
+                list.appendChild(makeButton(`list-item color-${subject.color}`, number, L(chapter, "name"),
+                    t("lessons", chapter.lessons.length), () => openChapter(chapter)));
             });
             showView("chapters");
         }
 
         function openChapter(chapter) {
             state.chapter = chapter;
-            document.getElementById("lessons-title").textContent = chapter.name;
+            document.getElementById("lessons-title").textContent = L(chapter, "name");
             const list = document.getElementById("lesson-list");
             list.replaceChildren();
             chapter.lessons.forEach(lesson => {
-                list.appendChild(makeButton(`list-item color-${state.subject.color}`, "📝", lesson.name,
-                    "Tap to read", () => openLesson(lesson)));
+                list.appendChild(makeButton(`list-item color-${state.subject.color}`, "📝", L(lesson, "name"),
+                    t("tapToRead"), () => openLesson(lesson)));
             });
             showView("lessons");
         }
 
         function openLesson(lesson) {
-            document.getElementById("reader-title").textContent = lesson.name;
+            state.lesson = lesson;
+            document.getElementById("reader-title").textContent = L(lesson, "name");
             const body = document.getElementById("reader-body");
             body.replaceChildren();
-            lesson.notes.forEach(text => {
+            L(lesson, "notes").forEach(text => {
                 const p = document.createElement("p");
                 p.textContent = text;
                 body.appendChild(p);
@@ -308,7 +501,6 @@
         const input = document.getElementById("chat-input");
         const sendBtn = document.getElementById("chat-send");
 
-        const WELCOME = "Hi there! I'm Buddy 🦉 Ask me anything from your textbook, and we'll learn together!";
         const history = [];   // [{role: "user" | "assistant", content: "..."}] sent to the server
 
         // Open/close the chat box when the round icon is clicked.
@@ -317,7 +509,7 @@
             chatWindow.hidden = !opening;
             toggleBtn.classList.toggle("open", opening);
             toggleBtn.setAttribute("aria-expanded", String(opening));
-            toggleBtn.setAttribute("aria-label", opening ? "Close chat with Buddy" : "Open chat with Buddy");
+            toggleBtn.setAttribute("aria-label", opening ? t("chatClose") : t("chatOpen"));
             if (opening) input.focus();
         });
 
@@ -332,7 +524,8 @@
         }
 
         // The welcome message is shown, but not sent to Claude (clean_history drops a leading assistant turn anyway).
-        addBubble("assistant", WELCOME);
+        // Kept in a variable so it can switch language too.
+        const welcomeBubble = addBubble("assistant", t("welcome"));
 
         form.addEventListener("submit", async event => {
             event.preventDefault();
@@ -344,7 +537,7 @@
             input.value = "";
             input.disabled = sendBtn.disabled = true;
 
-            const thinking = addBubble("assistant", "Buddy is thinking... 💭", "thinking");
+            const thinking = addBubble("assistant", t("thinking"), "thinking");
 
             try {
                 const res = await fetch("/api/chat", {
@@ -360,17 +553,54 @@
                 } else {
                     // Don't keep a question Buddy couldn't answer, so the child can simply ask again.
                     history.pop();
-                    addBubble("assistant", data.error || "Oops! Something went wrong. Please try again. 🙈", "error");
+                    addBubble("assistant", data.error || t("error"), "error");
                 }
             } catch (err) {
                 thinking.remove();
                 history.pop();
-                addBubble("assistant", "I can't reach my brain right now. Is the internet on? 🔌", "error");
+                addBubble("assistant", t("offline"), "error");
             } finally {
                 input.disabled = sendBtn.disabled = false;
                 input.focus();
             }
         });
+
+        /* =====================================================================
+           4. LANGUAGE SWITCHER
+           Swaps every data-i18n text, then re-fills the open screens in the new
+           language and puts the child back on the screen they were looking at.
+           Earlier chat messages stay as they were written.
+           ===================================================================== */
+        function applyLanguage(lang) {
+            LANG = lang;
+            try { localStorage.setItem("lang", lang); } catch (e) { }
+            document.documentElement.lang = lang;
+            document.title = t("title");
+
+            document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+            document.querySelectorAll("[data-i18n-placeholder]").forEach(el =>
+                el.setAttribute("placeholder", t(el.dataset.i18nPlaceholder)));
+            document.querySelectorAll("[data-i18n-aria-label]").forEach(el =>
+                el.setAttribute("aria-label", t(el.dataset.i18nAriaLabel)));
+            toggleBtn.setAttribute("aria-label", chatWindow.hidden ? t("chatOpen") : t("chatClose"));
+            welcomeBubble.textContent = t("welcome");
+
+            document.querySelectorAll(".lang-toggle button").forEach(btn =>
+                btn.setAttribute("aria-pressed", String(btn.dataset.lang === lang)));
+
+            // Re-render with the existing functions, then return to the screen that was open.
+            const active = document.querySelector(".view.active");
+            renderSubjects();
+            if (state.subject) openSubject(state.subject);
+            if (state.chapter) openChapter(state.chapter);
+            if (state.lesson) openLesson(state.lesson);
+            document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v === active));
+        }
+
+        document.querySelectorAll(".lang-toggle button").forEach(btn =>
+            btn.addEventListener("click", () => applyLanguage(btn.dataset.lang)));
+
+        if (LANG !== "en") applyLanguage(LANG);
     </script>
 </body>
 
